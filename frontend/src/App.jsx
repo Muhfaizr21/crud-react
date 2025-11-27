@@ -1,10 +1,30 @@
-// frontend/src/App.jsx (VERSI TAMPILAN BARU)
+// frontend/src/App.jsx (VERSI ULTRA-MODERN)
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
+// Anda mungkin perlu menginstal react-icons jika ingin menggunakan ikon: npm install react-icons
+import { FiPackage, FiDollarSign, FiBarChart2, FiEdit, FiTrash2, FiPlusCircle } from 'react-icons/fi';
 
-// URL dasar API backend
 const API_URL = 'http://localhost:5000/items'; 
+
+// Fungsi utilitas untuk format rupiah
+const formatRupiah = (number) => {
+    // Pastikan input adalah number, karena data dari MySQL bisa berupa string
+    const num = Number(number); 
+    return `Rp ${num.toLocaleString('id-ID', { minimumFractionDigits: 2 })}`;
+};
+
+// --- Komponen Card Metrik ---
+const MetricCard = ({ icon: Icon, title, value, colorClass }) => (
+    <div className={`p-5 rounded-xl shadow-lg ${colorClass} text-white transition duration-300 hover:scale-[1.02] transform`}>
+        <div className="flex items-center justify-between">
+            <Icon className="text-3xl opacity-70" />
+            <span className="text-xs font-semibold uppercase">{title}</span>
+        </div>
+        <div className="mt-2 text-2xl font-extrabold">{value}</div>
+    </div>
+);
+// --- Akhir Komponen Card Metrik ---
 
 function App() {
   const [items, setItems] = useState([]); 
@@ -12,7 +32,19 @@ function App() {
   const [isEditing, setIsEditing] = useState(false); 
   const [editingId, setEditingId] = useState(null); 
 
-  // **Fungsi 1: Ambil Data (Read)**
+  // Hitung Metrik Penting menggunakan useMemo (untuk efisiensi)
+  const inventoryMetrics = useMemo(() => {
+    const totalItems = items.length;
+    const totalStock = items.reduce((sum, item) => sum + Number(item.quantity), 0);
+    const totalValue = items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.price)), 0);
+    
+    return {
+        totalItems,
+        totalStock,
+        totalValue: formatRupiah(totalValue)
+    };
+  }, [items]); // Hitung ulang hanya jika daftar items berubah
+
   const fetchItems = async () => {
     try {
       const response = await axios.get(API_URL);
@@ -26,10 +58,8 @@ function App() {
     fetchItems();
   }, []); 
 
-  // Handler untuk perubahan input form
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Mengizinkan string kosong ('') untuk form input number agar user bisa menghapus input
     const processedValue = (name === 'quantity' || name === 'price') 
                            ? (value === '' ? '' : Number(value)) 
                            : value;
@@ -37,9 +67,14 @@ function App() {
     setForm({ ...form, [name]: processedValue });
   };
 
-  // **Fungsi 2: Tambah/Update Barang (Create/Update)**
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Validasi dasar di frontend (meskipun backend juga sudah memvalidasi)
+    if (!form.name || form.quantity === '' || form.price === '') {
+        alert('Mohon lengkapi semua field.');
+        return;
+    }
+    
     try {
       if (isEditing) {
         await axios.put(`${API_URL}/${editingId}`, form);
@@ -53,16 +88,13 @@ function App() {
       fetchItems(); 
     } catch (error) {
       console.error("Gagal menyimpan data:", error);
-      // Pesan error di sini berasal dari backend jika validasi gagal
-      alert('Gagal menyimpan barang. Pastikan semua field terisi benar.');
+      alert('Gagal menyimpan barang. Pastikan semua field terisi benar dan server berjalan.');
     }
   };
 
-  // **Fungsi 3: Atur Mode Edit**
   const handleEdit = (item) => {
     setIsEditing(true);
     setEditingId(item.id);
-    // Konversi nilai number dari item ke string agar value input terisi dengan benar
     setForm({ 
       name: item.name, 
       quantity: String(item.quantity), 
@@ -70,7 +102,6 @@ function App() {
     }); 
   };
 
-  // **Fungsi 4: Hapus Barang (Delete)**
   const handleDelete = async (id) => {
     if (window.confirm('Yakin ingin menghapus barang ini?')) {
       try {
@@ -81,90 +112,104 @@ function App() {
       }
     }
   };
-  
-  // Fungsi utilitas untuk format rupiah
-  const formatRupiah = (number) => {
-    return `Rp ${Number(number).toLocaleString('id-ID', { minimumFractionDigits: 2 })}`;
-  };
 
 
   return (
     // Background dan layout utama
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-screen bg-gray-100 pb-16">
       
-      {/* HEADER SECTION (Modern Look) */}
-      <header className="bg-gradient-to-r from-indigo-600 to-blue-500 shadow-xl py-10 mb-10">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <h1 className="text-4xl font-extrabold text-white tracking-tight">
-            📦 Inventory Management System
+      {/* HEADER SECTION (Gradient dan Shadow Kuat) */}
+      <header className="bg-gradient-to-br from-purple-700 to-indigo-600 shadow-2xl py-12 mb-10">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <h1 className="text-5xl font-extrabold text-white tracking-tight">
+            INVENTORY DASHBOARD
           </h1>
-          <p className="text-indigo-200 mt-2">Dikelola dengan React, Node.js, dan MySQL</p>
+          <p className="text-purple-200 mt-2 font-light">Kelola Stok Barang Anda Secara Real-Time</p>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4">
+      <main className="max-w-7xl mx-auto px-6">
+        
+        {/* METRIC CARDS SECTION */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <MetricCard 
+                icon={FiPackage}
+                title="Total Jenis Barang"
+                value={inventoryMetrics.totalItems}
+                colorClass="bg-green-500 shadow-md shadow-green-200"
+            />
+            <MetricCard 
+                icon={FiBarChart2}
+                title="Total Stok Unit"
+                value={inventoryMetrics.totalStock.toLocaleString('id-ID')}
+                colorClass="bg-blue-500 shadow-md shadow-blue-200"
+            />
+            <MetricCard 
+                icon={FiDollarSign}
+                title="Total Nilai Inventaris"
+                value={inventoryMetrics.totalValue}
+                colorClass="bg-red-500 shadow-md shadow-red-200"
+            />
+        </div>
         
         {/* CARD FORM TAMBAH/EDIT BARANG */}
-        <section className="bg-white p-6 shadow-2xl rounded-xl ring-1 ring-gray-100 mb-10">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">
-            {isEditing ? '✏️ Edit Item' : '➕ Add New Item'}
+        <section className="bg-white p-6 shadow-xl rounded-xl ring-1 ring-gray-200 mb-10">
+          <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
+            {isEditing ? <FiEdit className="mr-2 text-yellow-600" /> : <FiPlusCircle className="mr-2 text-indigo-600" />}
+            {isEditing ? 'Edit Informasi Barang' : 'Input Barang Baru'}
           </h2>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
             
-            {/* Input Name */}
-            <div className="md:col-span-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Barang</label>
+            <div className="md:col-span-3">
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Nama Barang</label>
                 <input
                     type="text"
                     name="name"
-                    placeholder="Contoh: Monitor LED"
+                    placeholder="Contoh: SSD 500GB"
                     value={form.name}
                     onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
                     required
                 />
             </div>
             
-            {/* Input Quantity */}
             <div className="md:col-span-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah (Unit)</label>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Jumlah</label>
                 <input
                     type="number"
                     name="quantity"
                     placeholder="10"
                     value={form.quantity}
                     onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
                     required
                 />
             </div>
             
-            {/* Input Price */}
-            <div className="md:col-span-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Harga (Rp)</label>
+            <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Harga Satuan (Rp)</label>
                 <input
                     type="number"
                     name="price"
                     placeholder="1500000.00"
                     value={form.price}
                     onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
                     step="0.01" 
                     required
                 />
             </div>
 
-            {/* Submit Button */}
             <div className="md:col-span-1 flex space-x-2">
                 <button
                     type="submit"
-                    className={`flex-grow p-3 rounded-lg font-semibold text-white transition duration-200 ${
+                    className={`flex-grow p-3 rounded-lg font-bold text-white transition duration-300 hover:shadow-xl ${
                         isEditing 
-                            ? 'bg-yellow-500 hover:bg-yellow-600 shadow-md hover:shadow-lg' 
-                            : 'bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg'
+                            ? 'bg-yellow-500 hover:bg-yellow-600' 
+                            : 'bg-indigo-600 hover:bg-indigo-700'
                     }`}
                 >
-                    {isEditing ? 'Simpan Perubahan' : 'Tambahkan Item'}
+                    {isEditing ? 'SIMPAN' : 'TAMBAH'}
                 </button>
 
                 {isEditing && (
@@ -174,7 +219,7 @@ function App() {
                             setEditingId(null);
                             setForm({ name: '', quantity: '', price: '' });
                         }}
-                        className="p-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200"
+                        className="p-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-300"
                     >
                         Batal
                     </button>
@@ -184,46 +229,49 @@ function App() {
         </section>
 
         {/* TABEL INVENTARIS BARANG */}
-        <section className="bg-white p-6 shadow-2xl rounded-xl ring-1 ring-gray-100">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">📋 Daftar Inventaris</h2>
+        <section className="bg-white p-6 shadow-xl rounded-xl ring-1 ring-gray-200">
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">📋 Daftar Stok Inventaris</h2>
           {items.length === 0 ? (
-            <div className="text-center p-8 bg-gray-50 rounded-lg text-gray-500">
-                <p className="text-lg font-medium">Inventaris Kosong.</p>
-                <p>Silakan tambahkan barang baru menggunakan formulir di atas.</p>
+            <div className="text-center p-12 bg-gray-50 rounded-lg text-gray-500 border border-dashed border-gray-300">
+                <FiPackage className="mx-auto text-6xl mb-3 text-gray-400" />
+                <p className="text-xl font-semibold">Data Inventaris Kosong.</p>
+                <p>Mulai dengan menambahkan item pertama Anda.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-indigo-50">
+                <thead className="bg-purple-100/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-indigo-700 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-indigo-700 uppercase tracking-wider">Nama Barang</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-indigo-700 uppercase tracking-wider">Jumlah</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-indigo-700 uppercase tracking-wider">Harga Satuan</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-indigo-700 uppercase tracking-wider">Total Harga</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-indigo-700 uppercase tracking-wider">Aksi</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-purple-800 uppercase tracking-wider">ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-purple-800 uppercase tracking-wider">Nama Barang</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-purple-800 uppercase tracking-wider">Jumlah</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-purple-800 uppercase tracking-wider">Harga Satuan</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-purple-800 uppercase tracking-wider">Total Nilai</th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-purple-800 uppercase tracking-wider">Aksi</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-gray-100">
                   {items.map((item, index) => (
-                    <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50 hover:bg-gray-100 transition duration-150'}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{item.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.quantity}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatRupiah(item.price)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-md font-semibold text-indigo-600">{formatRupiah(item.quantity * Number(item.price))}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                    <tr key={item.id} className="hover:bg-indigo-50 transition duration-150">
+                      <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500">{item.id}</td>
+                      <td className="px-6 py-3 whitespace-nowrap font-medium text-gray-900">{item.name}</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-600">{item.quantity} Unit</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-600">{formatRupiah(item.price)}</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-md font-extrabold text-red-600">{formatRupiah(item.quantity * Number(item.price))}</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-center space-x-2">
                         <button
                           onClick={() => handleEdit(item)}
-                          className="px-3 py-1 bg-teal-500 text-white rounded-md hover:bg-teal-600 transition duration-150"
+                          className="p-2 bg-yellow-100 text-yellow-600 rounded-full hover:bg-yellow-200 transition duration-150"
+                          title="Edit"
                         >
-                          Edit
+                          <FiEdit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(item.id)}
-                          className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition duration-150"
+                          className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition duration-150"
+                          title="Hapus"
                         >
-                          Hapus
+                          <FiTrash2 className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>
